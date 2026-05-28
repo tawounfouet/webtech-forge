@@ -219,6 +219,90 @@ Les apps Django communiquent via **imports Python directs** et **signaux Django*
 
 ---
 
+## API REST — Endpoints disponibles
+
+Toutes les routes sont préfixées par `/api/v1/`. L'authentification est JWT Bearer (`Authorization: Bearer <token>`).
+Le workspace courant est résolu depuis le header `X-Workspace-Slug` ou l'URL.
+
+### Auth
+
+| Méthode | URL | Description |
+|---|---|---|
+| `POST` | `/api/v1/auth/token/` | Obtenir access + refresh tokens |
+| `POST` | `/api/v1/auth/token/refresh/` | Renouveler l'access token |
+| `POST` | `/api/v1/auth/token/verify/` | Vérifier un token |
+
+### Organizations
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations/` | Authentifié | Lister mes organisations |
+| `POST` | `/api/v1/organizations/` | Authentifié | Créer une organisation |
+| `GET/PUT/PATCH/DELETE` | `/api/v1/organizations/{slug}/` | Authentifié | CRUD organisation |
+
+### Workspaces
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/workspaces/` | Authentifié | Lister mes workspaces |
+| `POST` | `/api/v1/workspaces/` | Authentifié | Créer un workspace |
+| `GET/PUT/PATCH/DELETE` | `/api/v1/workspaces/{slug}/` | Authentifié | CRUD workspace |
+| `GET/POST` | `/api/v1/workspaces/{slug}/members/` | Viewer+ / Admin | Membres |
+| `DELETE` | `/api/v1/workspaces/{slug}/members/{id}/` | Admin | Supprimer membre |
+| `GET/POST` | `/api/v1/workspaces/{slug}/secrets/` | Viewer+ | Secrets (valeur write-only) |
+| `GET/PUT/PATCH` | `/api/v1/workspaces/{slug}/quota/` | Viewer+ / Admin | Quotas |
+
+### Projects
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET/POST` | `/api/v1/projects/` | Developer+ | CRUD projets |
+| `GET/PUT/PATCH/DELETE` | `/api/v1/projects/{slug}/` | Developer+ | Détail projet |
+| `GET/POST` | `/api/v1/projects/{slug}/repositories/` | Developer+ | Dépôts git |
+
+### Environments
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET/POST` | `/api/v1/environments/` | Developer+ | CRUD environments (`?project=<id>`) |
+| `GET/PUT/PATCH/DELETE` | `/api/v1/environments/{id}/` | Developer+ | Détail + PromotionPolicy |
+
+### Services
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET/POST` | `/api/v1/services/` | Developer+ | CRUD services (`?environment=<id>`) |
+| `GET/PUT/PATCH/DELETE` | `/api/v1/services/{id}/` | Developer+ | Détail + env_vars, domains, volumes, healthcheck |
+| `POST` | `/api/v1/services/{id}/deploy/` | Operator+ | Déclencher un déploiement |
+| `GET` | `/api/v1/services/{id}/deployments/` | Developer+ | 20 derniers déploiements |
+
+### Deployments
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/deployments/` | Operator+ | Lister les déploiements du workspace |
+| `GET` | `/api/v1/deployments/{id}/` | Operator+ | Détail + events + rollback records |
+| `POST` | `/api/v1/deployments/{id}/rollback/` | Operator+ | Rejouer ce déploiement |
+
+### Catalog
+
+| Méthode | URL | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/catalog/templates/` | Authentifié | Catalogue de templates |
+| `GET` | `/api/v1/catalog/templates/{slug}/` | Authentifié | Détail template |
+| `POST` | `/api/v1/catalog/templates/` | Operator+ | Publier un template |
+| `POST` | `/api/v1/catalog/templates/{slug}/endorse/` | Operator+ | Certifier un template |
+
+### RBAC — Hiérarchie des rôles workspace
+
+```
+admin (6) > maintainer (5) > operator (4) > developer (3) > viewer (2) > auditor (1)
+```
+
+Les niveaux sont cumulatifs : un `operator` peut tout faire depuis `developer` et `viewer`.
+
+---
+
 ## Variables d'environnement — référence complète
 
 | Variable | Défaut | Description |
@@ -252,5 +336,7 @@ Pour overrider : `export DJANGO_SETTINGS_MODULE=config.settings.development`
 - [x] Migrations initiales
 - [x] Factories factory-boy
 - [x] Tests de base (modèles + middleware)
-- [ ] DRF serializers + viewsets (guide `05-api-drf.md`)
-- [ ] Middleware RBAC permissions
+- [x] DRF serializers + viewsets (guide `05-api-drf.md`)
+- [x] Middleware RBAC permissions
+
+Voir [CHANGELOG.md](./CHANGELOG.md) pour le détail de chaque livraison.
