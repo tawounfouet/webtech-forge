@@ -22,7 +22,8 @@ class DeploymentLogConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        await self._send_history()
+        for event in await self._get_history():
+            await self.send(text_data=json.dumps(event))
 
     async def disconnect(self, close_code: int) -> None:
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -46,10 +47,12 @@ class DeploymentLogConsumer(AsyncWebsocketConsumer):
             return False
 
     @database_sync_to_async
-    def _send_history(self) -> None:
-        events = DeploymentEvent.objects.filter(deployment_id=self.deployment_id).values(
-            "phase", "message", "level", "emitted_at"
+    def _get_history(self) -> list[dict]:
+        events = list(
+            DeploymentEvent.objects.filter(deployment_id=self.deployment_id).values(
+                "phase", "message", "level", "emitted_at"
+            )
         )
         for event in events:
             event["emitted_at"] = event["emitted_at"].isoformat()
-            self.send(text_data=json.dumps(event))
+        return events

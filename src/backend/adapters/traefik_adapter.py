@@ -1,11 +1,30 @@
 """
-Adapter Traefik — génération des labels Docker pour le routing HTTP/HTTPS.
-Implémentation complète dans 14-traefik-routing.md.
+Adapter Traefik — génération des labels Docker pour le routing HTTP/HTTPS (blue/green).
 """
 from __future__ import annotations
 
 
 class TraefikAdapter:
+    # ── Pipeline interface ────────────────────────────────────────────────────
+
+    @classmethod
+    def generate_labels(cls, service, deployment) -> dict[str, str]:
+        """
+        Génère les labels Docker Traefik pour un déploiement blue/green.
+        Les labels sont appliqués au conteneur au moment du `docker run`.
+        """
+        domain = service.domains.filter(tls_enabled=True).first() or service.domains.first()
+        hostname = domain.hostname if domain else f"{service.slug}.forge.local"
+        tls = domain.tls_enabled if domain else False
+        return cls().build_labels(
+            service_slug=service.slug,
+            hostname=hostname,
+            internal_port=service.internal_port,
+            tls_enabled=tls,
+        )
+
+    # ── Docker label builders ─────────────────────────────────────────────────
+
     def build_labels(
         self,
         service_slug: str,
