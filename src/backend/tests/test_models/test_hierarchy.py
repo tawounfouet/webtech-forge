@@ -22,9 +22,10 @@ class TestHierarchyCascade:
         org = OrganizationFactory()
         WorkspaceFactory(organization=org)
         WorkspaceFactory(organization=org)
-        assert Workspace.objects.filter(organization=org).count() == 2
+        org_id = org.pk
+        assert Workspace.objects.filter(organization_id=org_id).count() == 2
         org.delete()
-        assert Workspace.objects.filter(organization=org).count() == 0
+        assert Workspace.objects.filter(organization_id=org_id).count() == 0
 
     def test_workspace_delete_cascades_to_projects(self):
         from apps.projects.models import Project
