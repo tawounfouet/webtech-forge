@@ -17,6 +17,7 @@ urlpatterns = [
     path(API, include("apps.monitor.urls")),
     path(API + "catalog/", include("apps.catalog.urls")),
     path(API, include("apps.audit.urls")),
+    path(API, include("apps.integrations.urls")),
     # Prometheus metrics endpoint (accès interne uniquement via Traefik)
     path("metrics/", prometheus_exports.ExportToDjangoView, name="prometheus-metrics"),
 ]
