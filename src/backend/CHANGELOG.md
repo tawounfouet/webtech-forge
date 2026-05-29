@@ -7,15 +7,48 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-### À faire — Semaine 3-4 (prochain jalon)
+---
 
-- [ ] Workers Celery — pipeline Medallion `run_deployment` (Bronze→Silver→Gold)
-- [ ] WebSocket consumer `DeploymentLogConsumer` — streaming logs en temps réel
-- [ ] Tests DRF — `APIClient` + factories pour tous les viewsets
-- [ ] Adapters Docker/Git/Traefik — implémentation réelle (guide `07-deployment-engine.md`)
-- [ ] `GET /api/v1/audit/` — endpoint AuditLog
-- [ ] `GET /api/v1/monitor/` — endpoint Monitor Hub métriques
-- [ ] Intégration GitHub Webhook — `apps/integrations/views.py`
+## [0.3.0] — 2026-05-29 — Pipeline Medallion + WebSocket + Adapters + Tests DRF
+
+### Ajouté
+
+**Pipeline Medallion — `apps/deployments/`**
+
+- `tasks.py` : pipeline complet `run_deployment_pipeline` Bronze→Silver→Gold avec helpers `_emit`, `_update`, `_resolve_env_vars`, `_do_auto_rollback`
+- `services.py` : `DeploymentService` — `create_deployment` (lock + enqueue), `rollback` (saute Bronze/Silver), `trigger_auto_deploy` (webhook)
+- `consumers.py` : `DeploymentLogConsumer` — fix async/sync `_send_history` → `_get_history` (retourne `list[dict]`, envoi dans le contexte async)
+
+**Adapters hexagonaux — `adapters/`**
+
+| Adapter | Méthodes ajoutées |
+|---|---|
+| `DockerAdapter` | `ensure_workspace_network`, `run_service`, `wait_for_healthy`, `switch_traefik_traffic`, `stop_previous_container`, `restore_previous_container` |
+| `GitAdapter` | `clone_and_checkout`, `validate_build_config`, `validate_webhook_signature` |
+| `RegistryAdapter` | `build_and_push`, `list_all_images`, `delete_image` (no-arg constructor, lit `REGISTRY_HOST` depuis settings) |
+| `TraefikAdapter` | `generate_labels` (classmethod pour le pipeline) |
+
+**Nouveaux endpoints**
+
+- `GET /api/v1/audit/` + `GET /api/v1/audit/{id}/` — lecture AuditLog, filtre `?resource_type=`, Viewer+
+- `GET /api/v1/monitor/` + `GET /api/v1/monitor/{id}/` — 50 derniers MonitorSnapshot, Viewer+
+- `POST /api/v1/integrations/github/webhook/` — webhook GitHub push, vérification HMAC-SHA256, déclenche auto-deploy
+
+**Corrections**
+
+- `WorkspaceMiddleware` : décode le token Bearer JWT lui-même (DRF auth s'exécute après le middleware — `request.user` était AnonymousUser au moment du middleware, causant des 403 sur tous les endpoints JWT)
+- `ServiceViewSet.deploy` : remplace la création inline par `DeploymentService.create_deployment` (renvoie 409 si lock actif)
+- `DeploymentViewSet.rollback` : remplace la création inline par `DeploymentService.rollback` (renvoie 400 si aucun déploiement en succès)
+
+**Tests DRF — `tests/test_api/`**
+
+40 tests répartis en 7 modules (`APIClient` + factories + `unittest.mock.patch`) :
+- Isolation workspace sur tous les list endpoints
+- Contrôle RBAC (Viewer, Operator, Admin)
+- Actions métier `deploy` (conflit 409) et `rollback` (succès + 400)
+- Webhook GitHub (signature valide/invalide, push → auto-deploy)
+- Audit + Monitor scoped et filtrés
+- Fix `test_hierarchy` : `organization_id=` après `delete()` (Django 5.2)
 
 ---
 
