@@ -42,18 +42,12 @@ class DeploymentViewSet(
         methods=["post"],
         permission_classes=[IsAuthenticated, IsOperatorOrAbove],
     )
-    def rollback(self, request, pk=None):
-        source = self.get_object()
-        from .tasks import run_deployment
+    def rollback(self, request, pk=None):  # noqa: ARG002
+        from .services import DeploymentService
 
-        new_deployment = Deployment.objects.create(
-            service=source.service,
-            triggered_by=request.user,
-            trigger_source=Deployment.TriggerSource.MANUAL,
-            status=Deployment.Status.PENDING,
-            phase=Deployment.Phase.BRONZE,
-            commit_sha=source.commit_sha,
-            image_ref=source.image_ref,
-        )
-        run_deployment.delay(new_deployment.id)
+        source = self.get_object()
+        try:
+            new_deployment = DeploymentService.rollback(source, triggered_by=request.user)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"deployment_id": new_deployment.id}, status=status.HTTP_202_ACCEPTED)

@@ -31,7 +31,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             return ServiceDetailSerializer
         return ServiceSerializer
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request, _view, obj):
         return obj.environment.project.workspace == request.workspace
 
     # ── Actions métier ────────────────────────────────────────────────────────
@@ -41,23 +41,23 @@ class ServiceViewSet(viewsets.ModelViewSet):
         methods=["post"],
         permission_classes=[IsAuthenticated, IsOperatorOrAbove],
     )
-    def deploy(self, request, pk=None):
-        service = self.get_object()
-        from apps.deployments.models import Deployment
-        from apps.deployments.tasks import run_deployment
+    def deploy(self, request, pk=None):  # noqa: ARG002
+        from django.core.exceptions import ValidationError
 
-        deployment = Deployment.objects.create(
-            service=service,
-            triggered_by=request.user,
-            trigger_source=Deployment.TriggerSource.MANUAL,
-            status=Deployment.Status.PENDING,
-            phase=Deployment.Phase.BRONZE,
-        )
-        run_deployment.delay(deployment.id)
+        from apps.deployments.services import DeploymentService
+
+        service = self.get_object()
+        try:
+            deployment = DeploymentService.create_deployment(
+                service=service,
+                triggered_by=request.user,
+            )
+        except ValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response({"deployment_id": deployment.id}, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=["get"])
-    def deployments(self, request, pk=None):
+    def deployments(self, _request, pk=None):  # noqa: ARG002
         service = self.get_object()
         from apps.deployments.models import Deployment
         from apps.deployments.serializers import DeploymentListSerializer
