@@ -1,3 +1,8 @@
-from django.urls import path
+from rest_framework.routers import DefaultRouter
 
-urlpatterns: list = []
+from .views import MonitorSnapshotViewSet
+
+router = DefaultRouter()
+router.register("monitor", MonitorSnapshotViewSet, basename="monitor")
+
+urlpatterns = router.urls
